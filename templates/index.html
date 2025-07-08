@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Подсчет багажа</title>
+  <style>
+    :root {
+      --bg-color: #f4f6f8;
+      --text-color: #2c3e50;
+      --card-bg: #ffffff;
+      --button-bg: #2980b9;
+      --button-hover: #3498db;
+    }
+
+    body.dark {
+      --bg-color: #1e1e1e;
+      --text-color: #e0e0e0;
+      --card-bg: #2c2c2c;
+      --button-bg: #3b82f6;
+      --button-hover: #60a5fa;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: var(--card-bg);
+      padding: 30px 40px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.06);
+      border-radius: 12px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 40px;
+    }
+    
+    .buttons {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      justify-content: space-evenly;
+    }
+
+    .drop-zone {
+      border: 2px dashed #bbb;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      background-color: #fafafa;
+      position: relative;
+    }
+
+    .drop-zone.dragover {
+      background-color: #e8f0fe;
+    }
+
+    .drop-zone span {
+      display: block;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    button {
+      background-color: var(--button-bg);
+      color: #fff;
+      padding: 12px 25px;
+      font-size: 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s ease-in-out;
+    }
+
+    button:hover {
+      background-color: var(--button-hover);
+    }
+
+    .result-media {
+      margin-top: 20px;
+      max-width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    .stats {
+      margin-top: 12px;
+      font-size: 16px;
+    }
+
+    .loader {
+      display: none;
+      margin-top: 10px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      background-color: #ddd;
+      border-radius: 4px;
+      overflow: hidden;
+      height: 20px;
+      margin-top: 10px;
+    }
+
+    .progress {
+      height: 100%;
+      background-color: var(--button-bg);
+      width: 0%;
+      text-align: center;
+      color: white;
+      transition: width 0.3s ease;
+    }
+
+    .report-viewer {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .theme-switch {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Подсчет багажа на транспортной ленте</h1>
+
+    <div class="theme-switch">
+      <label>
+        <input type="checkbox" id="themeToggle"> Темная тема
+      </label>
+    </div>
+
+    <div class="section">
+      <h2>Обработка изображения</h2>
+      <div id="imageDrop" class="drop-zone">Перетащите изображение сюда<span id="imageFileName"></span></div>
+      <button onclick="processImage()">Запустить обработку</button>
+      <div class="loader" id="imageLoader">Обработка изображения...</div>
+      <img id="resultImage" class="result-media" src="" alt="" />
+      <div id="imageStats" class="stats"></div>
+    </div>
+
+    <div class="section">
+      <h2>Обработка видео</h2>
+      <div id="videoDrop" class="drop-zone">Перетащите видео сюда<span id="videoFileName"></span></div>
+      <button onclick="processVideo()">Запустить обработку видео</button>
+      <div class="progress-bar" id="videoProgressBar">
+        <div class="progress" id="videoProgress"></div>
+      </div>
+      <video id="resultVideo" class="result-media" controls></video>
+      <div id="videoStats" class="stats"></div>
+    </div>
+
+    <div class="buttons">
+      <button onclick="downloadReport('pdf')">Скачать PDF отчет</button>
+      <button onclick="downloadReport('excel')">Скачать Excel отчет</button>
+      <iframe id="reportViewer" class="report-viewer" width="100%" height="500" style="display:none;"></iframe>
+    </div>
+  </div>
+
+  <script>
+    let imageFile = null;
+    let videoFile = null;
+
+    document.getElementById('imageDrop').addEventListener('dragover', e => {
+      e.preventDefault(); e.target.classList.add('dragover');
+    });
+    document.getElementById('imageDrop').addEventListener('dragleave', e => e.target.classList.remove('dragover'));
+    document.getElementById('imageDrop').addEventListener('drop', e => {
+      e.preventDefault();
+      e.target.classList.remove('dragover');
+      imageFile = e.dataTransfer.files[0];
+      document.getElementById('imageFileName').innerText = imageFile.name;
+    });
+
+    document.getElementById('videoDrop').addEventListener('dragover', e => {
+      e.preventDefault(); e.target.classList.add('dragover');
+    });
+    document.getElementById('videoDrop').addEventListener('dragleave', e => e.target.classList.remove('dragover'));
+    document.getElementById('videoDrop').addEventListener('drop', e => {
+      e.preventDefault();
+      e.target.classList.remove('dragover');
+      videoFile = e.dataTransfer.files[0];
+      document.getElementById('videoFileName').innerText = videoFile.name;
+    });
+
+    async function processImage() {
+      if (!imageFile) return alert("Выберите изображение");
+      document.getElementById('imageLoader').style.display = 'block';
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      const res = await fetch('/process', { method: 'POST', body: formData });
+      const data = await res.json();
+      document.getElementById('resultImage').src = 'static/result.jpg?' + Date.now();
+      document.getElementById('imageStats').innerText = `Обнаружено чемоданов: ${data.count}`;
+      document.getElementById('imageLoader').style.display = 'none';
+    }
+
+    async function processVideo() {
+      if (!videoFile) return alert("Выберите видео");
+
+      const formData = new FormData();
+      formData.append('video', videoFile);
+
+      const progressBar = document.getElementById('videoProgress');
+      progressBar.style.width = '0%';
+      progressBar.innerText = '0%';
+
+      // WebSocket для реального прогресса
+      const socket = new WebSocket('ws://' + window.location.host + '/progress');
+      socket.onmessage = function(event) {
+        const progress = parseInt(event.data);
+        progressBar.style.width = `${progress}%`;
+        progressBar.innerText = `${progress}%`;
+      };
+
+      const res = await fetch('/process_video', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      progressBar.style.width = `100%`;
+      progressBar.innerText = `100%`;
+
+      document.getElementById('resultVideo').src = data.video_url + '?' + Date.now();
+      document.getElementById('videoStats').innerText = `Обнаружено чемоданов: ${data.count}`;
+    }
+
+    function downloadReport(format) {
+      const url = '/report?format=' + format;
+      document.getElementById('reportViewer').src = url;
+      document.getElementById('reportViewer').style.display = 'block';
+    }
+
+    document.getElementById('themeToggle').addEventListener('change', e => {
+      document.body.classList.toggle('dark', e.target.checked);
+    });
+  </script>
+</body>
+</html>
