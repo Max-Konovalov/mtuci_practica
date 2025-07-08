@@ -43,7 +43,7 @@ def generate_pdf(count: int) -> str:
 
     # Логотип
     if os.path.exists(LOGO_PATH):
-        c.drawImage(LOGO_PATH, PDF_MARGIN, height - 80, width=60,
+        c.drawImage(LOGO_PATH, PDF_MARGIN, height - 120, width=80,
                     preserveAspectRatio=True, mask='auto')
 
     # Горизонтальная линия
